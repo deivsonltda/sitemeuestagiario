@@ -19,11 +19,10 @@ COPY . .
 RUN rm -f /etc/nginx/http.d/default.conf
 COPY ./_deploy/nginx.conf /etc/nginx/http.d/default.conf
 
-# Pastas necessárias e permissões (evita 403 por permissão/exec em dirs)
+# Pastas necessárias e permissões/owner (evita 403 por permissão)
 RUN mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/nginx \
   && chmod -R 755 /var/www/html \
-  && chmod -R 755 /var/www/html/public \
-  && chmod -R 755 /var/www/html/public/assets
+  && chown -R nginx:nginx /var/www/html
 
 EXPOSE 80
 
