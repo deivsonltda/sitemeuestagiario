@@ -1,13 +1,13 @@
 # =========================================================
 # MeuEstagiário - PHP 8.2 FPM + Nginx (Alpine)
-# - Serve /public como root
-# - /assets vem da pasta real na raiz (alias no nginx)
-# - Mantém nginx em foreground e php-fpm em background
+# Ajustado para:
+# - index.php na raiz (/var/www/html/index.php)
+# - assets em /assets e também /public/assets (se existir)
 # =========================================================
 
 FROM php:8.2-fpm-alpine
 
-# Dependências + extensões PHP comuns
+# Instala Nginx + libs comuns
 RUN apk add --no-cache \
       nginx \
       curl \
@@ -22,17 +22,19 @@ RUN apk add --no-cache \
 WORKDIR /var/www/html
 COPY . .
 
-# Nginx config (o EasyPanel vai buildar com a pasta _deploy junto)
+# Permissões (evita 403 por leitura)
+RUN chown -R www-data:www-data /var/www/html \
+  && chmod -R 755 /var/www/html
+
+# Nginx config
 RUN rm -f /etc/nginx/http.d/default.conf
 COPY ./_deploy/nginx.conf /etc/nginx/http.d/default.conf
 
-# Pastas + permissões + garante public/assets apontando pra /assets real
-RUN mkdir -p /var/www/html/storage /var/www/html/log \
-  && rm -rf /var/www/html/public/assets \
-  && ln -s /var/www/html/assets /var/www/html/public/assets \
-  && chown -R www-data:www-data /var/www/html
+# Pastas que às vezes o nginx precisa
+RUN mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/nginx \
+  && chown -R www-data:www-data /run/nginx /var/lib/nginx /var/log/nginx
 
 EXPOSE 80
 
-# Start
+# Sobe php-fpm em background e nginx em foreground
 CMD ["sh", "-lc", "php-fpm -D && nginx -g 'daemon off;'"]
