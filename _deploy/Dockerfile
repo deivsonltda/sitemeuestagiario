@@ -1,12 +1,3 @@
-# =========================================================
-# MeuEstagiário - PHP 8.2 FPM + Nginx (single container)
-# Estrutura:
-# - /public/index.php
-# - /public/assets/*
-# - /app/layout/*.php
-# - /_deploy/nginx.conf
-# =========================================================
-
 FROM php:8.2-fpm-alpine
 
 RUN apk add --no-cache nginx bash curl \
@@ -15,11 +6,22 @@ RUN apk add --no-cache nginx bash curl \
 WORKDIR /var/www/html
 COPY . .
 
-# Nginx config
-RUN rm -f /etc/nginx/http.d/default.conf
-COPY ./_deploy/nginx.conf /etc/nginx/http.d/default.conf
+# Se o repositório veio com tudo dentro de /site, "achata" a estrutura:
+# /var/www/html/site/public -> /var/www/html/public
+RUN if [ -d "/var/www/html/site/public" ]; then \
+      echo "Detected /site folder. Moving contents to project root..."; \
+      cp -a /var/www/html/site/. /var/www/html/ && rm -rf /var/www/html/site; \
+    fi
 
-# Pastas necessárias e permissões/owner (evita 403 por permissão)
+# Aplica nginx.conf (serve tanto se veio achatado quanto se veio em site/)
+RUN rm -f /etc/nginx/http.d/default.conf \
+  && if [ -f "/var/www/html/_deploy/nginx.conf" ]; then \
+       cp /var/www/html/_deploy/nginx.conf /etc/nginx/http.d/default.conf; \
+     else \
+       echo "ERROR: _deploy/nginx.conf not found"; exit 1; \
+     fi
+
+# Pastas do nginx + permissões (como você pediu)
 RUN mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/nginx \
   && chmod -R 755 /var/www/html \
   && chown -R nginx:nginx /var/www/html
