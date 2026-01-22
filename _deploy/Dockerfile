@@ -1,38 +1,32 @@
 # =========================================================
-# MeuEstagiário - PHP 8.2 FPM + Nginx (Alpine)
-# Ajustado para:
-# - index.php na raiz (/var/www/html/index.php)
-# - assets em /assets e também /public/assets (se existir)
+# MeuEstagiário - PHP-FPM 8.2 + Nginx (single container)
+# Estrutura do projeto:
+#  - /public/index.php
+#  - /public/assets/...
+#  - /app/layout/*.php
+#  - /_deploy/nginx.conf
 # =========================================================
 
 FROM php:8.2-fpm-alpine
 
-# Instala Nginx + libs comuns
-RUN apk add --no-cache \
-      nginx \
-      curl \
-      bash \
-      icu-dev \
-      oniguruma-dev \
-      libzip-dev \
-    && docker-php-ext-install -j"$(nproc)" intl zip pdo pdo_mysql \
-    && rm -rf /var/cache/apk/*
+# Nginx + libs úteis
+RUN apk add --no-cache nginx bash curl \
+  && rm -rf /var/cache/apk/*
 
-# App
+# Diretório da aplicação
 WORKDIR /var/www/html
+
+# Copia tudo (inclui public/, app/, _deploy/)
 COPY . .
 
-# Permissões (evita 403 por leitura)
-RUN chown -R www-data:www-data /var/www/html \
-  && chmod -R 755 /var/www/html
-
-# Nginx config
+# Remove config default do nginx e aplica a sua
 RUN rm -f /etc/nginx/http.d/default.conf
 COPY ./_deploy/nginx.conf /etc/nginx/http.d/default.conf
 
-# Pastas que às vezes o nginx precisa
+# Permissões e pastas necessárias (evita 403 por permissão)
 RUN mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/nginx \
-  && chown -R www-data:www-data /run/nginx /var/lib/nginx /var/log/nginx
+  && chown -R www-data:www-data /var/www/html \
+  && chmod -R 755 /var/www/html
 
 EXPOSE 80
 
