@@ -6,18 +6,28 @@ RUN apk add --no-cache nginx bash curl \
 WORKDIR /var/www/html
 COPY . .
 
-# ✅ Verificação: se não achar public/index.php, o build falha e mostra o conteúdo
-RUN test -f /var/www/html/public/index.php || (echo "ERRO: public/index.php NÃO encontrado" && ls -la /var/www/html && ls -la /var/www/html/public || true && exit 1)
-
-# Nginx config
+# aplica nginx.conf do _deploy
 RUN rm -f /etc/nginx/http.d/default.conf \
   && cp /var/www/html/_deploy/nginx.conf /etc/nginx/http.d/default.conf
 
-# Pastas e permissões
+# permissões
 RUN mkdir -p /run/nginx /var/lib/nginx/tmp /var/log/nginx \
   && chmod -R 755 /var/www/html \
   && chown -R nginx:nginx /var/www/html
 
 EXPOSE 80
 
-CMD ["sh", "-lc", "php-fpm -D && nginx -g 'daemon off;'"]
+# ✅ LOGA onde está o index.php e o root real ANTES de subir
+CMD ["sh", "-lc", "\
+echo '--- DEBUG FILESYSTEM ---'; \
+pwd; \
+ls -la /var/www/html; \
+echo '--- /public ---'; \
+ls -la /var/www/html/public || true; \
+echo '--- FIND index.php ---'; \
+find /var/www/html -maxdepth 4 -name 'index.php' -print || true; \
+echo '--- NGINX CONFIG ---'; \
+nginx -T | sed -n '1,200p'; \
+echo '--- START ---'; \
+php-fpm -D && nginx -g 'daemon off;' \
+"]
